@@ -157,7 +157,7 @@ settings {
 		statusFile = "/var/log/lsyncd/lsyncd.status",
 		statusInterval = 20,
 		nodaemon   = false,
-		insist = true,
+		insist = true
 }
 sync {
 		default.rsyncssh,
@@ -228,7 +228,7 @@ sync {
 				}
 }
 sync {
-		default.rsync,
+		default.rsyncssh,
 		source="/var/lib/asterisk/",
 		host = "$ip_standby",
 		targetdir = "/home/sync/var/spool/asterisk/sqlite3_temp/",
