@@ -131,13 +131,21 @@ echo -e "3"	> step.txt
 
 create_lsyncd_config_file:
 echo -e "************************************************************"
-echo -e "*          Configure Sync in Server 1 and 2               *"
+echo -e "*             Configure Sync in Server 1                   *"
 echo -e "************************************************************"
+
+if [ ! -d "/usr/share/vitxi/" ] ;then
+	mkdir /usr/share/vitxi
+        mkdir /usr/share/vitxi/backend
+	 mkdir /usr/share/vitxi/backend/storage
+fi
+if [ ! -d "/var/lib/vitxi/" ] ;then
+	mkdir /var/lib/vitxi
+fi
 if [ ! -d "/home/sync/var/spool/asterisk/sqlite3_temp" ] ;then
 	mkdir -p /home/sync/var/spool/asterisk/sqlite3_temp
 fi
 ssh root@$ip_standby [[ ! -d /home/sync/var/spool/asterisk/sqlite3_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/spool/asterisk/sqlite3_temp" || echo "Path exist";
-
 if [ ! -d "/etc/lsyncd" ] ;then
 	mkdir /etc/lsyncd
 fi
@@ -312,8 +320,6 @@ create_mariadb_replica:
 echo -e "************************************************************"
 echo -e "*                Create MariaDB replica                    *"
 echo -e "************************************************************"
-#Remove anonymous user from MySQL
-mysql -uroot -e "DELETE FROM mysql.user WHERE User='';"
 #Configuration of the First Master Server (Master)
 cat > /etc/mysql/mariadb.conf.d/50-server.cnf << EOF
 #
@@ -329,7 +335,6 @@ cat > /etc/mysql/mariadb.conf.d/50-server.cnf << EOF
 #
 # * Replica Settings
 #
-
 server_id=1
 log-basename=master
 log-bin
@@ -628,7 +633,7 @@ cat > /usr/local/bin/vpbxstart << EOF
 #!/bin/bash
 # This code is the property of VitalPBX LLC Company
 # License: Proprietary
-# Date: 25-Apr-2021
+# Date: 28-Sep-2023
 # Stop Asterisk, copy asterisk database and start Asterisk again
 #
 systemctl stop asterisk
