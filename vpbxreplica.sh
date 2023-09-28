@@ -640,8 +640,7 @@ ssh root@$ip_standby "systemctl restart mariadb"
 #Create a new user on the Replica
 cat > /tmp/grand.sh << EOF
 #!/bin/bash
-mysql -uroot -e "CHANGE MASTER TO;"
-mysql -uroot -e "MASTER_HOST='$ip_master', MASTER_USER='vitalpbx_replica', MASTER_PASSWORD='vitalpbx_replica', MASTER_LOG_FILE='$file_server_1', MASTER_LOG_POS=$position_server_1;"
+mysql -uroot -e "CHANGE MASTER TO MASTER_HOST='$ip_master', MASTER_USER='vitalpbx_replica', MASTER_PASSWORD='vitalpbx_replica', MASTER_LOG_FILE='$file_server_1', MASTER_LOG_POS=$position_server_1;"
 mysql -uroot -e "START SLAVE;"
 EOF
 scp /tmp/grand.sh root@$ip_standby:/tmp/grand.sh
