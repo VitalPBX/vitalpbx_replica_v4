@@ -348,21 +348,141 @@ echo -e "*                Create MariaDB replica                    *"
 echo -e "************************************************************"
 #Remove anonymous user from MySQL
 mysql -uroot -e "DELETE FROM mysql.user WHERE User='';"
-#Configuration of the First Master Server (Master-1)
-cat > /etc/my.cnf.d/vitalpbx.cnf << EOF
+#Configuration of the First Master Server (Master)
+cat > /etc/mysql/mariadb.conf.d/50-server.cnf << EOF
+#
+# These groups are read by MariaDB server.
+# Use it for options that only the server (but not clients) should see
+
+# this is read by the standalone daemon and embedded servers
+[server]
+
+# this is only for the mysqld standalone daemon
 [mysqld]
-server-id=1
-log-bin=mysql-bin
-report_host = master
-innodb_buffer_pool_size = 64M
-innodb_flush_log_at_trx_commit = 2
-innodb_log_file_size = 64M
-innodb_log_buffer_size = 64M
-bulk_insert_buffer_size = 64M
-max_allowed_packet = 64M
+
+#
+# * Replica Settings
+#
+
+bind-address	= 0.0.0.0
+server-id	= 1
+report_host	= master
+log_bin		= /var/log/mysql/mariadb-bin
+log_bin_index	= /var/log/mysql/mariadb-bin.index
+relay_log	= /var/log/mysql/relay-bin
+relay_log_index	= /var/log/mysql/relay-bin.index
+
+#
+# * Basic Settings
+#
+
+user                    = mysql
+pid-file                = /run/mysqld/mysqld.pid
+basedir                 = /usr
+datadir                 = /var/lib/mysql
+tmpdir                  = /tmp
+lc-messages-dir         = /usr/share/mysql
+lc-messages             = en_US
+skip-external-locking
+
+# Broken reverse DNS slows down connections considerably and name resolve is
+# safe to skip if there are no "host by domain name" access grants
+#skip-name-resolve
+
+# Instead of skip-networking the default is now to listen only on
+# localhost which is more compatible and is not less secure.
+#bind-address            = 127.0.0.1
+
+#
+# * Fine Tuning
+#
+
+#key_buffer_size        = 128M
+#max_allowed_packet     = 1G
+#thread_stack           = 192K
+#thread_cache_size      = 8
+# This replaces the startup script and checks MyISAM tables if needed
+# the first time they are touched
+#myisam_recover_options = BACKUP
+#max_connections        = 100
+#table_cache            = 64
+
+#
+# * Logging and Replication
+#
+
+# Both location gets rotated by the cronjob.
+# Be aware that this log type is a performance killer.
+# Recommend only changing this at runtime for short testing periods if needed!
+#general_log_file       = /var/log/mysql/mysql.log
+#general_log            = 1
+
+# When running under systemd, error logging goes via stdout/stderr to journald
+# and when running legacy init error logging goes to syslog due to
+# /etc/mysql/conf.d/mariadb.conf.d/50-mysqld_safe.cnf
+# Enable this if you want to have error logging into a separate file
+#log_error = /var/log/mysql/error.log
+# Enable the slow query log to see queries with especially long duration
+#slow_query_log_file    = /var/log/mysql/mariadb-slow.log
+#long_query_time        = 10
+#log_slow_verbosity     = query_plan,explain
+#log-queries-not-using-indexes
+#min_examined_row_limit = 1000
+
+# The following can be used as easy to replay backup logs or for replication.
+# note: if you are setting up a replication slave, see README.Debian about
+#       other settings you may need to change.
+#server-id              = 1
+#log_bin                = /var/log/mysql/mysql-bin.log
+expire_logs_days        = 10
+#max_binlog_size        = 100M
+
+#
+# * SSL/TLS
+#
+
+# For documentation, please read
+# https://mariadb.com/kb/en/securing-connections-for-client-and-server/
+#ssl-ca = /etc/mysql/cacert.pem
+#ssl-cert = /etc/mysql/server-cert.pem
+#ssl-key = /etc/mysql/server-key.pem
+#require-secure-transport = on
+
+#
+# * Character sets
+#
+
+# MySQL/MariaDB default is Latin1, but in Debian we rather default to the full
+# utf8 4-byte character set. See also client.cnf
+character-set-server  = utf8mb4
+collation-server      = utf8mb4_general_ci
+
+#
+# * InnoDB
+#
+
+# InnoDB is enabled by default with a 10MB datafile in /var/lib/mysql/.
+# Read the manual for more InnoDB related options. There are many!
+# Most important is to give InnoDB 80 % of the system RAM for buffer use:
+# https://mariadb.com/kb/en/innodb-system-variables/#innodb_buffer_pool_size
+#innodb_buffer_pool_size = 8G
+
+# this is only for embedded server
+[embedded]
+
+# This group is only read by MariaDB servers, not by MySQL.
+# If you use the same .cnf file for MySQL and MariaDB,
+# you can put MariaDB-only options here
+[mariadb]
+
+# This group is only read by MariaDB-10.5 servers.
+# If you use the same .cnf file for MariaDB of different versions,
+# use this group for options that older servers don't understand
+[mariadb-10.5]
 EOF
 systemctl restart mariadb
-#Create a new user on the Master-1
+
+#Create a new user on the Master
 mysql -uroot -e "GRANT REPLICATION SLAVE ON *.* TO 'vitalpbx_replica'@'$ip_standby' IDENTIFIED BY 'vitalpbx_replica';"
 mysql -uroot -e "FLUSH PRIVILEGES;"
 mysql -uroot -e "FLUSH TABLES WITH READ LOCK;"
@@ -382,22 +502,142 @@ ssh root@$ip_standby "chmod +x /tmp/mysqldump.sh"
 ssh root@$ip_standby "/tmp/./mysqldump.sh"
 
 #Configuration of the Second Master Server (Replica)
-cat > /tmp/vitalpbx.cnf << EOF
+cat > /tmp/50-server.cnf << EOF
+#
+# These groups are read by MariaDB server.
+# Use it for options that only the server (but not clients) should see
+
+# this is read by the standalone daemon and embedded servers
+[server]
+
+# this is only for the mysqld standalone daemon
 [mysqld]
-server-id = 2
-log-bin=mysql-bin
-report_host = replica
-innodb_buffer_pool_size = 64M
-innodb_flush_log_at_trx_commit = 2
-innodb_log_file_size = 64M
-innodb_log_buffer_size = 64M
-bulk_insert_buffer_size = 64M
-max_allowed_packet = 64M
+
+#
+# * Replica Settings
+#
+
+bind-address	= 0.0.0.0
+server-id	= 2
+report_host	= replica
+log_bin		= /var/log/mysql/mariadb-bin
+log_bin_index	= /var/log/mysql/mariadb-bin.index
+relay_log	= /var/log/mysql/relay-bin
+relay_log_index	= /var/log/mysql/relay-bin.index
+
+#
+# * Basic Settings
+#
+
+user                    = mysql
+pid-file                = /run/mysqld/mysqld.pid
+basedir                 = /usr
+datadir                 = /var/lib/mysql
+tmpdir                  = /tmp
+lc-messages-dir         = /usr/share/mysql
+lc-messages             = en_US
+skip-external-locking
+
+# Broken reverse DNS slows down connections considerably and name resolve is
+# safe to skip if there are no "host by domain name" access grants
+#skip-name-resolve
+
+# Instead of skip-networking the default is now to listen only on
+# localhost which is more compatible and is not less secure.
+#bind-address            = 127.0.0.1
+
+#
+# * Fine Tuning
+#
+
+#key_buffer_size        = 128M
+#max_allowed_packet     = 1G
+#thread_stack           = 192K
+#thread_cache_size      = 8
+# This replaces the startup script and checks MyISAM tables if needed
+# the first time they are touched
+#myisam_recover_options = BACKUP
+#max_connections        = 100
+#table_cache            = 64
+
+#
+# * Logging and Replication
+#
+
+# Both location gets rotated by the cronjob.
+# Be aware that this log type is a performance killer.
+# Recommend only changing this at runtime for short testing periods if needed!
+#general_log_file       = /var/log/mysql/mysql.log
+#general_log            = 1
+
+# When running under systemd, error logging goes via stdout/stderr to journald
+# and when running legacy init error logging goes to syslog due to
+# /etc/mysql/conf.d/mariadb.conf.d/50-mysqld_safe.cnf
+# Enable this if you want to have error logging into a separate file
+#log_error = /var/log/mysql/error.log
+# Enable the slow query log to see queries with especially long duration
+#slow_query_log_file    = /var/log/mysql/mariadb-slow.log
+#long_query_time        = 10
+#log_slow_verbosity     = query_plan,explain
+#log-queries-not-using-indexes
+#min_examined_row_limit = 1000
+
+# The following can be used as easy to replay backup logs or for replication.
+# note: if you are setting up a replication slave, see README.Debian about
+#       other settings you may need to change.
+#server-id              = 1
+#log_bin                = /var/log/mysql/mysql-bin.log
+expire_logs_days        = 10
+#max_binlog_size        = 100M
+
+#
+# * SSL/TLS
+#
+
+# For documentation, please read
+# https://mariadb.com/kb/en/securing-connections-for-client-and-server/
+#ssl-ca = /etc/mysql/cacert.pem
+#ssl-cert = /etc/mysql/server-cert.pem
+#ssl-key = /etc/mysql/server-key.pem
+#require-secure-transport = on
+
+#
+# * Character sets
+#
+
+# MySQL/MariaDB default is Latin1, but in Debian we rather default to the full
+# utf8 4-byte character set. See also client.cnf
+character-set-server  = utf8mb4
+collation-server      = utf8mb4_general_ci
+
+#
+# * InnoDB
+#
+
+# InnoDB is enabled by default with a 10MB datafile in /var/lib/mysql/.
+# Read the manual for more InnoDB related options. There are many!
+# Most important is to give InnoDB 80 % of the system RAM for buffer use:
+# https://mariadb.com/kb/en/innodb-system-variables/#innodb_buffer_pool_size
+#innodb_buffer_pool_size = 8G
+
+# this is only for embedded server
+[embedded]
+
+# This group is only read by MariaDB servers, not by MySQL.
+# If you use the same .cnf file for MySQL and MariaDB,
+# you can put MariaDB-only options here
+[mariadb]
+
+# This group is only read by MariaDB-10.5 servers.
+# If you use the same .cnf file for MariaDB of different versions,
+# use this group for options that older servers don't understand
+[mariadb-10.5]
 EOF
-scp /tmp/vitalpbx.cnf root@$ip_standby:/etc/my.cnf.d/vitalpbx.cnf
+
+scp /tmp/50-server.cnf root@$ip_standby:/etc/mysql/mariadb.conf.d/50-server.cnf
 ssh root@$ip_standby "systemctl restart mariadb"
 
-#Create a new user on the Master-2
+#Create a new user on the Replica
 cat > /tmp/grand.sh << EOF
 #!/bin/bash
 mysql -uroot -e "CHANGE MASTER TO;"
