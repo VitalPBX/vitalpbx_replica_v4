@@ -133,39 +133,6 @@ create_lsyncd_config_file:
 echo -e "************************************************************"
 echo -e "*          Configure Sync in Server 1 and 2               *"
 echo -e "************************************************************"
-if [ ! -d "/var/spool/asterisk/monitor" ] ;then
-	mkdir /var/spool/asterisk/monitor
-fi
-chown asterisk:asterisk /var/spool/asterisk/monitor
-
-ssh root@$ip_standby [[ ! -d /var/spool/asterisk/monitor ]] && ssh root@$ip_standby "mkdir /var/spool/asterisk/monitor" || echo "Path exist";
-ssh root@$ip_standby "chown asterisk:asterisk /var/spool/asterisk/monitor"
-
-if [ ! -d "/home/sync/var/spool/asterisk/monitor_temp" ] ;then
-	mkdir -p /home/sync/var/spool/asterisk/monitor_temp
-fi
-ssh root@$ip_standby [[ ! -d /home/sync/var/spool/asterisk/monitor_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/spool/asterisk/monitor_temp" || echo "Path exist";
-
-if [ ! -d "/home/sync/var/lib/asterisk/agi-bin_temp" ] ;then
-	mkdir -p /home/sync/var/lib/asterisk/agi-bin_temp
-fi
-ssh root@$ip_standby [[ ! -d /home/sync/var/lib/asterisk/agi-bin_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/lib/asterisk/agi-bin_temp" || echo "Path exist";
-
-if [ ! -d "/home/sync/var/lib/asterisk/priv-callerintros_temp" ] ;then
-	mkdir -p /home/sync/var/lib/asterisk/priv-callerintros_temp
-fi
-ssh root@$ip_standby [[ ! -d /home/sync/var/lib/asterisk/priv-callerintros_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/lib/asterisk/priv-callerintros_temp" || echo "Path exist";
-
-if [ ! -d "/home/sync/var/lib/asterisk/sounds_temp" ] ;then
-	mkdir -p /home/sync/var/lib/asterisk/sounds_temp
-fi
-ssh root@$ip_standby [[ ! -d /home/sync/var/lib/asterisk/sounds_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/lib/asterisk/sounds_temp" || echo "Path exist";
-
-if [ ! -d "/home/sync/var/lib/vitalpbx_temp" ] ;then
-	mkdir -p /home/sync/var/lib/vitalpbx_temp
-fi
-ssh root@$ip_standby [[ ! -d /home/sync/var/lib/vitalpbx_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/lib/vitalpbx_temp" || echo "Path exist";
-
 if [ ! -d "/home/sync/var/spool/asterisk/sqlite3_temp" ] ;then
 	mkdir -p /home/sync/var/spool/asterisk/sqlite3_temp
 fi
@@ -179,7 +146,6 @@ if [ ! -d "/var/log/lsyncd" ] ;then
 	touch /var/log/lsyncd/lsyncd.{log,status}
 fi
 
-cat > /etc/lsyncd/lsyncd.conf.lua << EOF
 cat > /etc/lsyncd/lsyncd.conf.lua << EOF
 ----
 -- User configuration file for lsyncd.
@@ -364,13 +330,10 @@ cat > /etc/mysql/mariadb.conf.d/50-server.cnf << EOF
 # * Replica Settings
 #
 
-bind-address	= 0.0.0.0
-server-id	= 1
-report_host	= master
-log_bin		= /var/log/mysql/mariadb-bin
-log_bin_index	= /var/log/mysql/mariadb-bin.index
-relay_log	= /var/log/mysql/relay-bin
-relay_log_index	= /var/log/mysql/relay-bin.index
+server_id=1
+log-basename=master
+log-bin
+binlog-format=row
 
 #
 # * Basic Settings
@@ -391,7 +354,7 @@ skip-external-locking
 
 # Instead of skip-networking the default is now to listen only on
 # localhost which is more compatible and is not less secure.
-#bind-address            = 127.0.0.1
+#bind-address            = 0.0.0.0
 
 #
 # * Fine Tuning
@@ -474,6 +437,10 @@ collation-server      = utf8mb4_general_ci
 # If you use the same .cnf file for MySQL and MariaDB,
 # you can put MariaDB-only options here
 [mariadb]
+log-bin
+server_id=1
+log-basename=master
+binlog-format=mixed
 
 # This group is only read by MariaDB-10.5 servers.
 # If you use the same .cnf file for MariaDB of different versions,
@@ -483,12 +450,16 @@ EOF
 systemctl restart mariadb
 
 #Create a new user on the Master
+mysql -uroot -e "CREATE USER 'vitalpbx_replica' @'%' IDENTIFIED BY 'vitalpbx_replica';"
 mysql -uroot -e "GRANT REPLICATION SLAVE ON *.* TO 'vitalpbx_replica'@'$ip_standby' IDENTIFIED BY 'vitalpbx_replica';"
 mysql -uroot -e "FLUSH PRIVILEGES;"
-mysql -uroot -e "FLUSH TABLES WITH READ LOCK;"
+
 #Get bin_log on Master-1
 file_server_1=`mysql -uroot -e "show master status" | awk 'NR==2 {print $1}'`
 position_server_1=`mysql -uroot -e "show master status" | awk 'NR==2 {print $2}'`
+
+#Once the data has been copied, you can release the lock on the master by running UNLOCK TABLES
+mysql -uroot -e "UNLOCK TABLES;"
 
 #Now on the Master-1 server, do a dump of the database MySQL and import it to Master-2
 mysqldump -u root --all-databases > all_databases.sql
@@ -517,13 +488,11 @@ cat > /tmp/50-server.cnf << EOF
 # * Replica Settings
 #
 
-bind-address	= 0.0.0.0
-server-id	= 2
-report_host	= replica
-log_bin		= /var/log/mysql/mariadb-bin
-log_bin_index	= /var/log/mysql/mariadb-bin.index
-relay_log	= /var/log/mysql/relay-bin
-relay_log_index	= /var/log/mysql/relay-bin.index
+server_id=2
+log-basename=replica
+log-bin
+binlog-format=row
+binlog-do-db=replica_db
 
 #
 # * Basic Settings
