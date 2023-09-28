@@ -171,7 +171,16 @@ if [ ! -d "/home/sync/var/spool/asterisk/sqlite3_temp" ] ;then
 fi
 ssh root@$ip_standby [[ ! -d /home/sync/var/spool/asterisk/sqlite3_temp ]] && ssh root@$ip_standby "mkdir -p /home/sync/var/spool/asterisk/sqlite3_temp" || echo "Path exist";
 
-cat > /etc/lsyncd.conf << EOF
+if [ ! -d "/etc/lsyncd" ] ;then
+	mkdir /etc/lsyncd
+fi
+if [ ! -d "/var/log/lsyncd" ] ;then
+	mkdir /var/log/lsyncd
+	touch /var/log/lsyncd/lsyncd.{log,status}
+fi
+
+cat > /etc/lsyncd/lsyncd.conf.lua << EOF
+cat > /etc/lsyncd/lsyncd.conf.lua << EOF
 ----
 -- User configuration file for lsyncd.
 --
@@ -179,34 +188,26 @@ cat > /etc/lsyncd.conf << EOF
 --
 settings {
 		logfile    = "/var/log/lsyncd/lsyncd.log",
-		statusFile = "/var/log/lsyncd/lsyncd-status.log",
+		statusFile = "/var/log/lsyncd/lsyncd.status",
 		statusInterval = 20,
-		nodaemon   = true,
+		nodaemon   = false,
 		insist = true,
 }
 sync {
-		default.rsync,
-		source="/var/spool/asterisk/monitor",
-		target="$ip_standby:/var/spool/asterisk/monitor",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/spool/asterisk/monitor_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
+		default.rsyncssh,
+		source = "/var/spool/asterisk/monitor",
+		host = "$ip_standby",
+		targetdir = "/var/spool/asterisk/monitor",
+		rsync = {
+				owner = true,
 				group = true
 		}
 }
 sync {
-		default.rsync,
-		source="/var/lib/asterisk/",
-		target="$ip_standby:/home/sync/var/spool/asterisk/sqlite3_temp/",
+		default.rsyncssh,
+		source = "/var/lib/asterisk/",
+		host = "$ip_standby",
+		targetdir = "/var/lib/asterisk/",
 		rsync = {
 				binary = "/usr/bin/rsync",
 				owner = true,
@@ -219,124 +220,52 @@ sync {
 				}
 }
 sync {
-		default.rsync,
-		source="/var/lib/asterisk/agi-bin/",
-		target="$ip_standby:/var/lib/asterisk/agi-bin/",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/lib/asterisk/agi-bin_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-sync {
-		default.rsync,
-		source="/var/lib/asterisk/priv-callerintros/",
-		target="$ip_standby:/var/lib/asterisk/priv-callerintros",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/lib/asterisk/priv-callerintros_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-sync {
-		default.rsync,
-		source="/var/lib/asterisk/sounds/",
-		target="$ip_standby:/var/lib/asterisk/sounds/",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/lib/asterisk/sounds_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-sync {
-		default.rsync,
-		source="/var/lib/vitalpbx",
-		target="$ip_standby:/var/lib/vitalpbx",
-		delete = 'running',
-                --delay = 5,
+		default.rsyncssh,
+		source = "/usr/share/vitxi/backend/",
+		host = "$ip_standby",
+		targetdir = "/usr/share/vitxi/backend/",
 		rsync = {
-		                -- timeout = 3000,
-                		update = true,
 				binary = "/usr/bin/rsync",
-				_extra = {      "--temp-dir=/home/sync/var/lib/vitalpbx_temp/",
-						"--exclude=*.lic",
-						"--exclude=*.dat",
-						"--exclude=dbsetup-done",
-						"--exclude=cache"
-						},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-EOF
-cat > /tmp/lsyncd.conf << EOF
-----
--- User configuration file for lsyncd.
---
--- Simple example for default rsync.
---
-settings {
-		logfile    = "/var/log/lsyncd/lsyncd.log",
-		statusFile = "/var/log/lsyncd/lsyncd-status.log",
-		statusInterval = 20,
-		nodaemon   = true,
-		insist = true,
+				owner = true,
+				group = true,
+				archive = "true",
+				_extra = {
+						"--include=.env",
+						"--exclude=*"
+						}
+				}
 }
 sync {
-		default.rsync,
-		source="/var/spool/asterisk/monitor",
-		target="$ip_master:/var/spool/asterisk/monitor",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/spool/asterisk/monitor_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
+		default.rsyncssh,
+		source = "/usr/share/vitxi/backend/storage/",
+		host = "$ip_standby",
+		targetdir = "/usr/share/vitxi/backend/storage/",
+		rsync = {
+				owner = true,
 				group = true
 		}
+}
+sync {
+		default.rsyncssh,
+		source = "/var/lib/vitxi/",
+		host = "$ip_standby",
+		targetdir = "/var/lib/vitxi/",
+		rsync = {
+				binary = "/usr/bin/rsync",
+				owner = true,
+				group = true,
+				archive = "true",
+				_extra = {
+						"--include=wizard.conf",
+						"--exclude=*"
+						}
+				}
 }
 sync {
 		default.rsync,
 		source="/var/lib/asterisk/",
-		target="$ip_master:/home/sync/var/spool/asterisk/sqlite3_temp/",
+		host = "$ip_standby",
+		targetdir = "/home/sync/var/spool/asterisk/sqlite3_temp/",
 		rsync = {
 				binary = "/usr/bin/rsync",
 				owner = true,
@@ -349,93 +278,66 @@ sync {
 				}
 }
 sync {
-		default.rsync,
-		source="/var/lib/asterisk/agi-bin/",
-		target="$ip_master:/var/lib/asterisk/agi-bin/",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/lib/asterisk/agi-bin_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-sync {
-		default.rsync,
-		source="/var/lib/asterisk/priv-callerintros/",
-		target="$ip_master:/var/lib/asterisk/priv-callerintros",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/lib/asterisk/priv-callerintros_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-sync {
-		default.rsync,
-		source="/var/lib/asterisk/sounds/",
-		target="$ip_master:/var/lib/asterisk/sounds/",
-		delete = 'running',
-                --delay = 5,
-		rsync={
-                		-- timeout = 3000,
-                		update = true,
-                		_extra={"--temp-dir=/home/sync/var/lib/asterisk/sounds_temp/"},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
-				group = true
-		}
-}
-sync {
-		default.rsync,
-		source="/var/lib/vitalpbx",
-		target="$ip_master:/var/lib/vitalpbx",
-		delete = 'running',
-                --delay = 5,
+		default.rsyncssh,
+		source = "/var/lib/asterisk/agi-bin/",
+		host = "$ip_standby",
+		targetdir = "/var/lib/asterisk/agi-bin/",
 		rsync = {
-		                -- timeout = 3000,
-                		update = true,
+				owner = true,
+				group = true
+		}
+}
+sync {
+		default.rsyncssh,
+		source = "/var/lib/asterisk/priv-callerintros/",
+		host = "$ip_standby",
+		targetdir = "/var/lib/asterisk/priv-callerintros",
+		rsync = {
+				owner = true,
+				group = true
+		}
+}
+sync {
+		default.rsyncssh,
+		source = "/var/lib/asterisk/sounds/",
+		host = "$ip_standby",
+		targetdir = "/var/lib/asterisk/sounds/",
+		rsync = {
+				owner = true,
+				group = true
+		}
+}
+sync {
+		default.rsyncssh,
+		source = "/var/lib/vitalpbx",
+		host = "$ip_standby",
+		targetdir = "/var/lib/vitalpbx",
+		rsync = {
 				binary = "/usr/bin/rsync",
-				_extra = {      "--temp-dir=/home/sync/var/lib/vitalpbx_temp/",
+				owner = true,
+				group = true,			
+				archive = "true",
+				_extra = {
 						"--exclude=*.lic",
 						"--exclude=*.dat",
 						"--exclude=dbsetup-done",
 						"--exclude=cache"
-						},
-                		times = true,
-                		archive = true,
-                		compress = true,
-                		perms = true,
-                		acls = true,
-                		owner = true,
+						}
+				}
+}
+sync {
+		default.rsyncssh,
+		source = "/etc/asterisk",
+		host = "$ip_standby",
+		targetdir = "/etc/asterisk",
+		rsync = {
+				owner = true,
 				group = true
 		}
 }
 EOF
-scp /tmp/lsyncd.conf root@$ip_standby:/etc/lsyncd.conf
 systemctl enable lsyncd.service
-ssh root@$ip_standby "systemctl enable lsyncd.service"
 systemctl start lsyncd.service
-ssh root@$ip_standby "systemctl start lsyncd.service"
 
 echo -e "*** Done Step 4 ***"
 echo -e "4"	> step.txt
@@ -451,7 +353,7 @@ cat > /etc/my.cnf.d/vitalpbx.cnf << EOF
 [mysqld]
 server-id=1
 log-bin=mysql-bin
-report_host = master1
+report_host = master
 innodb_buffer_pool_size = 64M
 innodb_flush_log_at_trx_commit = 2
 innodb_log_file_size = 64M
@@ -461,7 +363,7 @@ max_allowed_packet = 64M
 EOF
 systemctl restart mariadb
 #Create a new user on the Master-1
-mysql -uroot -e "GRANT REPLICATION SLAVE ON *.* to vitalpbx_replica@'%' IDENTIFIED BY 'vitalpbx_replica';"
+mysql -uroot -e "GRANT REPLICATION SLAVE ON *.* TO 'vitalpbx_replica'@'$ip_standby' IDENTIFIED BY 'vitalpbx_replica';"
 mysql -uroot -e "FLUSH PRIVILEGES;"
 mysql -uroot -e "FLUSH TABLES WITH READ LOCK;"
 #Get bin_log on Master-1
@@ -479,12 +381,12 @@ scp /tmp/mysqldump.sh root@$ip_standby:/tmp/mysqldump.sh
 ssh root@$ip_standby "chmod +x /tmp/mysqldump.sh"
 ssh root@$ip_standby "/tmp/./mysqldump.sh"
 
-#Configuration of the Second Master Server (Master-2)
+#Configuration of the Second Master Server (Replica)
 cat > /tmp/vitalpbx.cnf << EOF
 [mysqld]
 server-id = 2
 log-bin=mysql-bin
-report_host = master2
+report_host = replica
 innodb_buffer_pool_size = 64M
 innodb_flush_log_at_trx_commit = 2
 innodb_log_file_size = 64M
@@ -494,34 +396,18 @@ max_allowed_packet = 64M
 EOF
 scp /tmp/vitalpbx.cnf root@$ip_standby:/etc/my.cnf.d/vitalpbx.cnf
 ssh root@$ip_standby "systemctl restart mariadb"
+
 #Create a new user on the Master-2
 cat > /tmp/grand.sh << EOF
 #!/bin/bash
-mysql -uroot -e "GRANT REPLICATION SLAVE ON *.* to vitalpbx_replica@'%' IDENTIFIED BY 'vitalpbx_replica';"
-mysql -uroot -e "FLUSH PRIVILEGES;"
-mysql -uroot -e "FLUSH TABLES WITH READ LOCK;"
+mysql -uroot -e "CHANGE MASTER TO;"
+mysql -uroot -e "MASTER_HOST='$ip_master', MASTER_USER='vitalpbx_replica', MASTER_PASSWORD='vitalpbx_replica', MASTER_LOG_FILE='$file_server_1', MASTER_LOG_POS=$position_server_1;"
+mysql -uroot -e "START SLAVE;"
 EOF
 scp /tmp/grand.sh root@$ip_standby:/tmp/grand.sh
 ssh root@$ip_standby "chmod +x /tmp/grand.sh"
 ssh root@$ip_standby "/tmp/./grand.sh"
-#Get bin_log on Master-2
-file_server_2=`ssh root@$ip_standby 'mysql -uroot -e "show master status;"' | awk 'NR==2 {print $1}'`
-position_server_2=`ssh root@$ip_standby 'mysql -uroot -e "show master status;"' | awk 'NR==2 {print $2}'`
-#Stop the slave, add Master-1 to the Master-2 and start slave
-cat > /tmp/change.sh << EOF
-#!/bin/bash
-mysql -uroot -e "STOP SLAVE;"
-mysql -uroot -e "CHANGE MASTER TO MASTER_HOST='$ip_master', MASTER_USER='vitalpbx_replica', MASTER_PASSWORD='vitalpbx_replica', MASTER_LOG_FILE='$file_server_1', MASTER_LOG_POS=$position_server_1;"
-mysql -uroot -e "START SLAVE;"
-EOF
-scp /tmp/change.sh root@$ip_standby:/tmp/change.sh
-ssh root@$ip_standby "chmod +x /tmp/change.sh"
-ssh root@$ip_standby "/tmp/./change.sh"
-
-#Connect to Master-1 and follow the same steps
-mysql -uroot -e "STOP SLAVE;"
-mysql -uroot -e "CHANGE MASTER TO MASTER_HOST='$ip_standby', MASTER_USER='vitalpbx_replica', MASTER_PASSWORD='vitalpbx_replica', MASTER_LOG_FILE='$file_server_2', MASTER_LOG_POS=$position_server_2;"
-mysql -uroot -e "START SLAVE;"
+ssh root@$ip_standby "rm /tmp/grand.sh"
 echo -e "*** Done Step 5 ***"
 echo -e "5"	> step.txt
 
