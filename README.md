@@ -11,7 +11,7 @@ Because this is a deployment in two remote sites, it is not possible to have the
 The VitalPBX team does not provide support for systems in an HA environment because it is not possible to determine the environment where it has been installed.
 
 ## Example:<br>
-![VitalPBX HA](https://github.com/VitalPBX/vitalpbx_replica/blob/main/HAReplica2Servers.png)
+![VitalPBX HA](https://github.com/VitalPBX/vitalpbx_replica_v4/blob/main/MasterSlaveVitalPBX4Replica.png)
 
 -----------------
 ## Prerequisites
