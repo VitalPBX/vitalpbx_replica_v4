@@ -499,7 +499,6 @@ log-basename=replica
 log-bin
 binlog-format=row
 slave-skip-errors = 1062
-skip-slave-start
 
 #
 # * Basic Settings
