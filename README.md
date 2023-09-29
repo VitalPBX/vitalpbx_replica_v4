@@ -38,7 +38,6 @@ Disable the DHCP option and set these values<br>
 Install the necessary dependencies on both servers<br>
 <pre>
 [root@<strong>voip01.domain.com</strong> ~]# apt -y install wget lsyncd
-[root@<strong>voip02.domain.com</strong> ~]# apt -y install wget lsyncd
 </pre>
 
 ## Create authorization key for the Access between the two servers without credentials
