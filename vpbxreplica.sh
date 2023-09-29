@@ -335,6 +335,7 @@ cat > /etc/mysql/mariadb.conf.d/50-server.cnf << EOF
 #
 # * Replica Settings
 #
+
 server_id=1
 log-basename=master
 log-bin
@@ -497,7 +498,8 @@ server_id=2
 log-basename=replica
 log-bin
 binlog-format=row
-binlog-do-db=replica_db
+slave-skip-errors = 1062
+skip-slave-start
 
 #
 # * Basic Settings
@@ -629,6 +631,9 @@ echo -e "*     Create Scripts to copy SQLite Asterisk database      *"
 echo -e "*          Stop Asterisk, copy asterisk database           *"
 echo -e "*                and start Asterisk again                  *"
 echo -e "************************************************************"
+#Stops Asterisk to avoid duplicate logs in the call queues table (queues_log)
+ssh root@$ip_standby "systemctl stop asterisk"
+ssh root@$ip_standby "systemctl disable asterisk"
 cat > /usr/local/bin/vpbxstart << EOF
 #!/bin/bash
 # This code is the property of VitalPBX LLC Company
@@ -639,6 +644,7 @@ cat > /usr/local/bin/vpbxstart << EOF
 systemctl stop asterisk
 /bin/cp -Rf /home/sync/var/spool/asterisk/sqlite3_temp/astdb.sqlite3 /var/lib/asterisk/astdb.sqlite3
 systemctl start asterisk
+systemctl enable asterisk
 EOF
 chmod +x /usr/local/bin/vpbxstart
 scp /usr/local/bin/vpbxstart root@$ip_standby:/usr/local/bin/vpbxstart
