@@ -84,7 +84,7 @@ Then, to see the slave’s status, run the command below.
 [root@<strong>voip02.domain.com</strong> ~]# mysql -uroot -e "SHOW SLAVE STATUS\G;"
 </pre>
 
-If everything is correct you should see the following statuses in Yes
+If everything is correct you should see the following values in <strong>Yes</strong>
 <pre>
 Slave_IO_Running: Yes
 Slave_SQL_Running: Yes
