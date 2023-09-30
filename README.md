@@ -79,6 +79,17 @@ IP Standby............... > <strong>192.168.10.62</strong>
 Are you sure to continue with this settings? (yes,no) > <strong>yes</strong>
 </pre>
 
+Then, to see the slave’s status, run the command below.
+<pre>
+[root@<strong>voip02.domain.com</strong> ~]# mysql -uroot -e "SHOW SLAVE STATUS\G;"
+</pre>
+
+If everything is correct you should see the following statuses in Yes
+<pre>
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+</pre>
+
 ## Note
 If you want both servers to have the same settings in the Asterisk files and keep the changes in the Asterisk database (astdb.sqlite3), when starting the backup server run the following command in the console:<br>
 <pre>
