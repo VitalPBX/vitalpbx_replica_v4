@@ -35,17 +35,17 @@ Disable the DHCP option and set these values<br>
 | Secondary DNS | 8.8.4.4                | 8.8.4.4               |
 
 ## Install Dependencies
-Install the necessary dependencies on both servers<br>
+Install the necessary dependencies in Server <strong>Master</strong><br>
 <pre>
-[root@<strong>voip01.domain.com</strong> ~]# apt -y install wget lsyncd
+root@<strong>voip01.domain.com</strong> ~# apt -y install wget lsyncd
 </pre>
 
 ## Create authorization key for the Access between the two servers without credentials
 
-Create key in Server <strong>1</strong>
+Create key in Server <strong>Master</strong>
 <pre>
-[root@server<strong>1</strong> ~]# ssh-keygen -f /root/.ssh/id_rsa -t rsa -N '' >/dev/null
-[root@server<strong>1</strong> ~]# ssh-copy-id root@<strong>192.168.10.62</strong>
+root@<strong>voip01.domain.com</strong> ~# ssh-keygen -f /root/.ssh/id_rsa -t rsa -N '' >/dev/null
+root@<strong>voip01.domain.com</strong> ~# ssh-copy-id root@<strong>192.168.10.62</strong>
 Are you sure you want to continue connecting (yes/no)? <strong>yes</strong>
 root@192.168.10.62's password: <strong>(remote server root’s password)</strong>
 
@@ -54,17 +54,17 @@ Number of key(s) added: 1
 Now try logging into the machine, with:   "ssh 'root@192.168.10.62'"
 and check to make sure that only the key(s) you wanted were added. 
 
-[root@server<strong>1</strong> ~]#
+root@<strong>voip01.domain.com</strong> ~#
 </pre>
 
 ## Script
 Now copy and run the following script<br>
 <pre>
-[root@ vitalpbx<strong>1</strong> ~]# mkdir /usr/share/vitalpbx/replica
-[root@ vitalpbx<strong>1</strong> ~]# cd /usr/share/vitalpbx/replica
-[root@ vitalpbx<strong>1</strong> ~]# wget https://raw.githubusercontent.com/VitalPBX/vitalpbx_replica_v4/master/vpbxreplica.sh
-[root@ vitalpbx<strong>1</strong> ~]# chmod +x vpbxreplica.sh
-[root@ vitalpbx<strong>1</strong> ~]# ./vpbxreplica.sh
+root@<strong>voip01.domain.com</strong> ~# mkdir /usr/share/vitalpbx/replica
+root@<strong>voip01.domain.com</strong> ~# cd /usr/share/vitalpbx/replica
+root@<strong>voip01.domain.com</strong> ~# wget https://raw.githubusercontent.com/VitalPBX/vitalpbx_replica_v4/master/vpbxreplica.sh
+root@<strong>voip01.domain.com</strong> ~# chmod +x vpbxreplica.sh
+root@<strong>voip01.domain.com</strong> ~# ./vpbxreplica.sh
 
 ************************************************************
 *  Welcome to the VitalPBX high availability installation  *
@@ -81,7 +81,7 @@ Are you sure to continue with this settings? (yes,no) > <strong>yes</strong>
 
 Then, to see the slave’s status, run the command below.
 <pre>
-[root@<strong>voip02.domain.com</strong> ~]# mysql -uroot -e "SHOW SLAVE STATUS\G;"
+root@<strong>voip02.domain.com</strong> ~# mysql -uroot -e "SHOW SLAVE STATUS\G;"
 </pre>
 
 If everything is correct you should see the following values in <strong>Yes</strong>
@@ -91,8 +91,8 @@ Slave_SQL_Running: Yes
 </pre>
 
 ## Note
-If you want both servers to have the same settings in the Asterisk files and keep the changes in the Asterisk database (astdb.sqlite3), when starting the backup server run the following command in the console:<br>
+If the Master server fails and we want to use the Replica, it is necessary to execute the following command so that the Asterisk SQLite database is copied and restarted.
 <pre>
-[root@server<strong>1-2</strong> ~]# vpbxstart
+root@<strong>voip02.domain.com</strong> ~# vpbxstart
 </pre>
 
